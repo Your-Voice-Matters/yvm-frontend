@@ -41,8 +41,8 @@ onMounted(() => {
 <template>
     <div class="nav-bar">
         <div>YourVoiceMatters</div>
-        <button v-if="unmStore.get()" type="button" @click="logout">Logout</button>
-        <div v-else style="display: flex; gap: 10px; align-items: center;">
+        <button v-if="unmStore.get()" type="button" class="logout-btn" @click="logout">Logout</button>
+        <div v-else class="auth-buttons">
             <button type="button" @click="router.push('/login')">Login</button>
             <button type="button" @click="router.push('/signup')">Sign Up</button>
         </div>
@@ -54,17 +54,74 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #ddd;
+    padding: 1.25rem 2.5rem;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-bar > div:first-child {
+    font-size: 1.5rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+.nav-bar .auth-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .nav-bar button {
-    padding: 5px 10px;
-    background-color: #007bff;
+    padding: 0.625rem 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.nav-bar button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.nav-bar button:active {
+    transform: translateY(0);
+}
+
+.nav-bar button.logout-btn {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.nav-bar button.logout-btn:hover {
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+@media (max-width: 768px) {
+    .nav-bar {
+        padding: 1rem 1.5rem;
+    }
+    
+    .nav-bar > div:first-child {
+        font-size: 1.2rem;
+    }
+    
+    .nav-bar button {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
 }
 </style>
