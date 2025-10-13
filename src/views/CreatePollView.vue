@@ -4,25 +4,47 @@ import { useRouter } from 'vue-router';
 
 import getCSRFToken from '../utils/fetchCSRFtoken';
 import NavBar from '../components/NavBar.vue';
+import { BASE_URL } from '@/utils/constants';
+import { showToast } from '@/utils/toastsService';
 
 const router = useRouter();
 const title = ref('');
 const description = ref('');
 const options = ref<string[]>(['', '']);
+const isCreating = ref(false);
+const showModal = ref(false);
+
+const showConfirmation = () => {
+    if(!title.value.trim()) {
+        showToast('Title is required', 'error');
+        throw new Error('Title is required');
+    }
+    if(options.value.filter(opt => !opt.trim()).length) {
+        showToast('All options must be non-empty', 'error');
+        throw new Error('All options must be non-empty');
+    }
+    isCreating.value = true;
+    showModal.value = true;
+};
+
+const cancelCreation = () => {
+    showModal.value = false;
+    isCreating.value = false;
+};
+
+const confirmCreation = () => {
+    showModal.value = false;
+    createPoll();
+    isCreating.value = false;
+};
 
 const createPoll = async() => {
     try {
-        if(!title.value.trim()) {
-            throw new Error('Title is required');
-        }
-        if(options.value.filter(opt => !opt.trim()).length) {
-            throw new Error('All options must be non-empty');
-        }
         const csrfToken = await getCSRFToken();
         if (!csrfToken) {
             throw new Error('CSRF token missing');
         }
-        const response = await fetch('http://localhost:8080/create-poll', {
+        const response = await fetch(`${BASE_URL}/create-poll`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -36,10 +58,12 @@ const createPoll = async() => {
             }),
         });
         if(!response.ok) {
-            throw new Error((await response.json()).message || 'Poll creation failed');
+            const errorMsg = (await response.json()).message || 'Poll creation failed';
+            showToast(errorMsg, 'error');
+            throw new Error(errorMsg);
         }
         const data = await response.json();
-        console.log('Poll created successfully:', data);
+        showToast('Poll created successfully!', 'success');
         router.push('/home');
     } catch (error: any) {
         console.error('Error during poll creation:', error.message);
@@ -85,7 +109,36 @@ const createPoll = async() => {
                     </div>
                 </div>
                 <div>
-                    <button type="button" class="create-poll-btn" @click="createPoll">Create Poll</button>
+                    <button 
+                        type="button" 
+                        class="create-poll-btn" 
+                        :disabled="isCreating"
+                        @click="showConfirmation"
+                    >
+                        {{ isCreating ? 'Creating...' : 'Create Poll' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div v-if="showModal" class="modal-overlay" @click.self="cancelCreation">
+            <div class="modal-content">
+                <div class="modal-icon">⚠️</div>
+                <h2 class="modal-title">Confirm Poll Creation</h2>
+                <p class="modal-message">
+                    Are you sure you want to create this poll?
+                </p>
+                <div class="modal-warning">
+                    <strong>⚠️ Important:</strong> Once created, polls cannot be edited or deleted. Please review your poll carefully before confirming.
+                </div>
+                <div class="modal-buttons">
+                    <button class="modal-btn modal-btn-cancel" @click="cancelCreation">
+                        Cancel
+                    </button>
+                    <button class="modal-btn modal-btn-confirm" @click="confirmCreation">
+                        Yes, Create Poll
+                    </button>
                 </div>
             </div>
         </div>
@@ -242,5 +295,118 @@ const createPoll = async() => {
 .create-poll-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+.create-poll-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* ===== CONFIRMATION MODAL ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-icon {
+    font-size: 3.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.modal-title {
+    font-size: 1.8rem;
+    color: #333;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.modal-message {
+    font-size: 1rem;
+    color: #666;
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.modal-warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    color: #856404;
+    font-size: 0.95rem;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.modal-btn {
+    padding: 0.875rem 2rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modal-btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-btn-cancel:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+}
+
+.modal-btn-confirm {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.modal-btn-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 </style>

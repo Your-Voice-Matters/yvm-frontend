@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { BASE_URL } from '@/utils/constants';
+import { showToast } from '@/utils/toastsService';
+
 const router = useRouter();
 const username = ref('');
 const password = ref('');
@@ -9,9 +12,10 @@ const showPassword = ref(false);
 const signup = async() => {
     try {
         if(!checkUnameValidity() || !checkPwdValidity()) {
+            showToast('Invalid username or password', 'error');
             throw new Error('Invalid username or password format');
         }
-        const response = await fetch('http://localhost:8080/signup', {
+        const response = await fetch(`${BASE_URL}/signup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -22,9 +26,11 @@ const signup = async() => {
             }),
         });
         if(!response.ok) {
-            throw new Error((await response.json()).message || 'Signup failed');
+            const errorMsg = (await response.json()).message || 'Signup failed';
+            showToast(errorMsg, 'error');
+            throw new Error(errorMsg);
         }
-        const data = await response.json();
+        showToast('Signup successful!', 'success');
         router.push('/login');
     } catch (error: any) {
         console.error('Error during signup:', error.message);
@@ -36,7 +42,7 @@ const signup = async() => {
  * @returns {boolean} True if the username is valid, false otherwise.
  */
 const checkUnameValidity = () => {
-    return /^[a-zA-Z0-9_]{3,20}$/.test(username.value);
+    return /^[a-zA-Z0-9_\.]{3,20}$/.test(username.value);
 };
 
 /**
@@ -51,7 +57,7 @@ const checkPwdValidity = () => {
 <template>
     <div class="auth-container">
         <div class="auth-box">
-            <h1>Signup Page</h1>
+            <h1>Signup</h1>
             <div class="form-group">
                 <label>Username</label>
                 <input type="text" v-model="username" />
@@ -61,7 +67,7 @@ const checkPwdValidity = () => {
                         Username looks good!
                     </span>
                     <span v-else>
-                        Username must be 3-20 characters long and can only contain letters, numbers, and underscores.
+                        Username must be 3-20 characters long and can only contain letters, numbers, underscores and '.'.
                     </span>
                 </div>
             </div>

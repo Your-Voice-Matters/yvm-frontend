@@ -4,10 +4,12 @@ import { useRouter } from 'vue-router';
 
 import { setUsername } from "../utils/setUser";
 import { usernameStore } from "../stores/username";
+import { BASE_URL } from "../utils/constants";
 
 const router = useRouter();
 const unmStore = usernameStore();
 import getCSRFToken from '../utils/fetchCSRFtoken';
+import { showToast } from '@/utils/toastsService';
 
 async function logout() {
     try {
@@ -15,7 +17,7 @@ async function logout() {
         if (!csrfToken) {
             throw new Error('CSRF token missing');
         }
-        const response = await fetch('http://localhost:8080/logout', {
+        const response = await fetch(`${BASE_URL}/logout`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -23,10 +25,14 @@ async function logout() {
             },
         });
         if (!response.ok) {
-            throw new Error((await response.json()).message || 'Logout failed');
+            const errorMsg = (await response.json()).message || 'Logout failed';
+            showToast(errorMsg, 'error');
+            throw new Error(errorMsg);
         }
         window.localStorage.removeItem('username');
         document.cookie = "cookieName=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+        unmStore.set('');
+        showToast('Logout successful!', 'success');
         router.push('/login');
     } catch (error: any) {
         console.error('Error during logout:', error.message);
@@ -40,7 +46,7 @@ onMounted(() => {
 
 <template>
     <div class="nav-bar">
-        <div>YourVoiceMatters</div>
+        <div style="cursor: pointer;" @click="router.push('/home')">YourVoiceMatters</div>
         <button v-if="unmStore.get()" type="button" class="logout-btn" @click="logout">Logout</button>
         <div v-else class="auth-buttons">
             <button type="button" @click="router.push('/login')">Login</button>

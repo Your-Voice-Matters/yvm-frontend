@@ -6,10 +6,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { usernameStore } from '../stores/username';
 import getCSRFToken from '@/utils/fetchCSRFtoken';
 import { setUsername } from '@/utils/setUser';
+import { BASE_URL } from '@/utils/constants';
+import { showToast } from '@/utils/toastsService';
 
 const route = useRoute();
 const router = useRouter();
 const poll = ref<any>(null);
+const option_votes = ref<any[]>([]);
 const alreadyVoted = ref(true);
 const chosenOption = ref(-1);
 const description = ref('');
@@ -18,14 +21,19 @@ const unmStore = usernameStore();
 async function fetchPoll() {
     try {
         poll.value = "loading";
-        const response = await fetch(`http://localhost:8080/poll-details?pollid=${route.params.id}`, {
+        const response = await fetch(`${BASE_URL}/poll-details?pollid=${route.params.id}`, {
             method: 'GET',
         });
         if (!response.ok) {
             poll.value = null;
-            throw new Error((await response.json()).message || 'Failed to fetch poll');
+            option_votes.value = [];
+            const errorMsg = (await response.json()).message || 'Failed to fetch poll details';
+            console.error(errorMsg);
+            throw new Error(errorMsg);
         }
-        poll.value = await response.json();
+        const data = await response.json();
+        poll.value = data.poll;
+        option_votes.value = data.option_votes;
     } catch (error: any) {
         console.error('Error fetching poll:', error.message);
     }
@@ -37,7 +45,7 @@ async function isAlreadyVoted() {
         throw new Error('CSRF token missing');
     }
     try {
-        const response = await fetch(`http://localhost:8080/has-voted?pollid=${route.params.id}`, {
+        const response = await fetch(`${BASE_URL}/has-voted?pollid=${route.params.id}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -45,7 +53,9 @@ async function isAlreadyVoted() {
             },
         });
         if (!response.ok) {
-            throw new Error((await response.json()).message || 'Failed to check vote status');
+            const errorMsg = (await response.json()).message || 'Failed to check vote status';
+            console.error(errorMsg);
+            throw new Error(errorMsg);
         }
         const data = await response.json();
         alreadyVoted.value = data.hasVoted;
@@ -69,7 +79,7 @@ async function castVote() {
         if (!token) {
             throw new Error('CSRF token missing');
         }
-        const response = await fetch(`http://localhost:8080/cast-vote`, {
+        const response = await fetch(`${BASE_URL}/cast-vote`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -83,14 +93,37 @@ async function castVote() {
             }),
         });
         if (!response.ok) {
-            throw new Error((await response.json()).message || 'Failed to cast vote');
+            const errorMsg = (await response.json()).message || 'Failed to cast vote';
+            showToast(errorMsg, 'error');
+            throw new Error(errorMsg);
         }
-        router.push('/home');
+        showToast('Vote casted successfully!', 'success');
         alreadyVoted.value = true;
+        router.push('/home');
     } catch (error: any) {
         console.error('Error casting vote:', error.message);
     }
 }
+
+const getTotalVotes = () => {
+    if (!option_votes.value || !option_votes.value.length) return 0;
+    return option_votes.value.reduce((sum: number, item: any) => sum + item.votes_count, 0);
+};
+
+const getPercentage = (votes: number) => {
+    const total = getTotalVotes();
+    if (total === 0) return 0;
+    return Math.round((votes / total) * 100);
+};
+
+const getSortedResults = () => {
+    if (!option_votes.value || !option_votes.value.length) return [];
+    return [...option_votes.value].sort((a, b) => b.votes_count - a.votes_count);
+};
+
+const getRankClass = (index: number) => {
+    return `rank-${index + 1}`;
+};
 
 onMounted(async() => {
     setUsername();
@@ -123,7 +156,46 @@ onMounted(async() => {
                     </div>
                 </div>
                 <div class="results-section">
-                    <h2>Total Votes</h2>
+                    <h2>Poll Results</h2>
+                    
+                    <div class="results-stats">
+                        <div class="stat-item-result">
+                            <span class="stat-number-result">{{ getTotalVotes() }}</span>
+                            <span class="stat-label-result">Total Votes</span>
+                        </div>
+                        <div class="stat-item-result">
+                            <span class="stat-number-result">{{ poll.options.length }}</span>
+                            <span class="stat-label-result">Options</span>
+                        </div>
+                    </div>
+
+                    <div v-if="getTotalVotes() > 0" class="results-chart">
+                        <div v-for="(item, index) in getSortedResults()" :key="index" class="chart-bar-container">
+                            <div class="chart-bar-header">
+                                <span class="chart-option-label">{{ poll.options[item.chosenoption] }}</span>
+                                <div class="chart-option-stats">
+                                    <span class="chart-votes-count">{{ item.votes_count }} votes</span>
+                                    <span class="chart-percentage">{{ getPercentage(item.votes_count) }}%</span>
+                                </div>
+                            </div>
+                            <div class="chart-bar-wrapper">
+                                <div 
+                                    class="chart-bar-fill" 
+                                    :style="{ width: getPercentage(item.votes_count) + '%' }"
+                                >
+                                    <span v-if="getPercentage(item.votes_count) > 15" class="chart-bar-percentage-inside">
+                                        {{ getPercentage(item.votes_count) }}%
+                                    </span>
+                                </div>
+                                <div :class="['chart-bar-rank', getRankClass(index)]">
+                                    {{ index + 1 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="no-votes-message">
+                        No votes yet. Be the first to vote!
+                    </div>
                 </div>
             </div>
             <div v-else class="error-message-box">
@@ -256,7 +328,193 @@ onMounted(async() => {
 .results-section h2 {
     color: #667eea;
     font-size: 1.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.results-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+}
+
+.stat-item-result {
+    text-align: center;
+}
+
+.stat-number-result {
+    font-size: 2rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label-result {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.results-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.chart-bar-container {
+    position: relative;
+}
+
+.chart-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.chart-option-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.chart-option-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.chart-votes-count {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.chart-percentage {
+    color: #666;
+    font-weight: 600;
+}
+
+.chart-bar-wrapper {
+    position: relative;
+    height: 45px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chart-bar-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-bar-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.chart-bar-percentage-inside {
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.chart-bar-rank {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #667eea;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 2;
+}
+
+.chart-bar-rank.rank-1 {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #333;
+}
+
+.chart-bar-rank.rank-2 {
+    background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+    color: #333;
+}
+
+.chart-bar-rank.rank-3 {
+    background: linear-gradient(135deg, #cd7f32 0%, #e6a96d 100%);
+    color: #333;
+}
+
+.no-votes-message {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+    .results-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .chart-bar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .chart-bar-wrapper {
+        height: 40px;
+    }
+    
+    .chart-bar-rank {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+        left: 0.75rem;
+    }
 }
 
 /* ===== RESPONSIVE DESIGN ===== */

@@ -3,6 +3,8 @@
     import { useRouter } from 'vue-router';
 
     import { usernameStore } from '../stores/username';
+    import { BASE_URL } from '@/utils/constants';
+import { showToast } from '@/utils/toastsService';
 
     const router = useRouter();
     const unmStore = usernameStore();
@@ -12,7 +14,11 @@
 
     const handleLogin = async() => {
         try {
-            const response = await fetch('http://localhost:8080/login', {
+            if (!username.value || !password.value) {
+                showToast('Please enter both username and password.', 'error');
+                throw new Error('Username or password is empty');
+            }
+            const response = await fetch(`${BASE_URL}/login`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -24,12 +30,14 @@
                 }),
             });
             if(!response.ok) {
-                throw new Error((await response.json()).message || 'Login failed');
+                let errorMsg = (await response.json()).message || 'Login failed';
+                showToast(errorMsg, 'error');
+                throw new Error(errorMsg);
             }
             const data = await response.json();
             window.localStorage.setItem('username', username.value);
             unmStore.set(username.value);
-            console.log('Login successful:');
+            showToast('Login successful!', 'success');
             router.push('/home');
         } catch (error: any) {
             console.error('Error during login:', error.message);
