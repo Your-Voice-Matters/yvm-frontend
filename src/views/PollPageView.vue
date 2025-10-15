@@ -4,7 +4,6 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { usernameStore } from '../stores/username';
-import getCSRFToken from '@/utils/fetchCSRFtoken';
 import { setUsername } from '@/utils/setUser';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
@@ -40,16 +39,11 @@ async function fetchPoll() {
 }
 
 async function isAlreadyVoted() {
-    const token = await getCSRFToken();
-    if (!token) {
-        throw new Error('CSRF token missing');
-    }
     try {
         const response = await fetch(`${BASE_URL}/has-voted?pollid=${route.params.id}`, {
             method: 'GET',
-            credentials: 'include',
             headers: {
-                'X-CSRF-Token': token,
+                'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}`,
             },
         });
         if (!response.ok) {
@@ -75,16 +69,11 @@ function canVote() {
 
 async function castVote() {
     try {
-        const token = await getCSRFToken();
-        if (!token) {
-            throw new Error('CSRF token missing');
-        }
         const response = await fetch(`${BASE_URL}/cast-vote`, {
             method: 'POST',
-            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-Token': token,
+                'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}`,
             },
             body: JSON.stringify({
                 pollid: Number(route.params.id) || -1,
@@ -249,7 +238,6 @@ onMounted(async() => {
     align-items: center;
     gap: 1rem;
     transition: all 0.2s ease;
-    cursor: pointer;
 }
 
 .poll-option:hover {

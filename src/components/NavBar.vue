@@ -4,33 +4,15 @@ import { useRouter } from 'vue-router';
 
 import { setUsername } from "../utils/setUser";
 import { usernameStore } from "../stores/username";
-import { BASE_URL } from "../utils/constants";
 
 const router = useRouter();
 const unmStore = usernameStore();
-import getCSRFToken from '../utils/fetchCSRFtoken';
 import { showToast } from '@/utils/toastsService';
 
 async function logout() {
     try {
-        const csrfToken = await getCSRFToken();
-        if (!csrfToken) {
-            throw new Error('CSRF token missing');
-        }
-        const response = await fetch(`${BASE_URL}/logout`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'X-CSRF-Token': csrfToken,
-            },
-        });
-        if (!response.ok) {
-            const errorMsg = (await response.json()).message || 'Logout failed';
-            showToast(errorMsg, 'error');
-            throw new Error(errorMsg);
-        }
         window.localStorage.removeItem('username');
-        document.cookie = "cookieName=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+        window.localStorage.removeItem('token');
         unmStore.set('');
         showToast('Logout successful!', 'success');
         router.push('/login');

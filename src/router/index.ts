@@ -37,9 +37,9 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  if(!['login', 'landing', 'signup'].includes(to.name as string) && !document.cookie.split('; ').filter(str => str.startsWith('csrf_token=')).length)
+  if(!['login', 'landing', 'signup'].includes(to.name as string) && !window.localStorage.getItem('token'))
     return next({ name: 'login' });
-  if(to.name == 'login' && document.cookie.split('; ').filter(str => str.startsWith('csrf_token=')).length)
+  if(to.name == 'login' && window.localStorage.getItem('token'))
     return next({ name: 'home' });
   next();
 });

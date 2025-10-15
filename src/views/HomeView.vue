@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 import NavBar from "../components/NavBar.vue";
-import getCSRFToken from '../utils/fetchCSRFtoken';
 import { setUsername } from '@/utils/setUser';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
@@ -35,16 +34,10 @@ async function getMostPopularPolls() {
 
 async function fetchMyPolls() {
   try {
-    const csrfToken = await getCSRFToken();
-    if (!csrfToken) {
-      throw new Error('CSRF token missing');
-    }
-
     const response = await fetch(`${BASE_URL}/my-polls`, {
       method: 'GET',
-      credentials: 'include',
       headers: {
-        'X-CSRF-Token': csrfToken,
+        'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}`,
       },
     });
 
@@ -65,16 +58,10 @@ async function fetchMyPolls() {
 
 async function fetchPollsIParticipatedIn() {
   try {
-    const csrfToken = await getCSRFToken();
-    if (!csrfToken) {
-      throw new Error('CSRF token missing');
-    }
-
     const response = await fetch(`${BASE_URL}/polls-i-participated-in`, {
       method: 'GET',
-      credentials: 'include',
       headers: {
-        'X-CSRF-Token': csrfToken,
+        'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}`,
       },
     });
 

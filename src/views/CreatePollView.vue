@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import getCSRFToken from '../utils/fetchCSRFtoken';
 import NavBar from '../components/NavBar.vue';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
@@ -40,16 +39,11 @@ const confirmCreation = () => {
 
 const createPoll = async() => {
     try {
-        const csrfToken = await getCSRFToken();
-        if (!csrfToken) {
-            throw new Error('CSRF token missing');
-        }
         const response = await fetch(`${BASE_URL}/create-poll`, {
             method: 'POST',
-            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
+                'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}`,
             },
             body: JSON.stringify({
                 title: title.value,

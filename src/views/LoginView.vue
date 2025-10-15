@@ -20,7 +20,6 @@ import { showToast } from '@/utils/toastsService';
             }
             const response = await fetch(`${BASE_URL}/login`, {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -36,6 +35,7 @@ import { showToast } from '@/utils/toastsService';
             }
             const data = await response.json();
             window.localStorage.setItem('username', username.value);
+            window.localStorage.setItem('token', data.token);
             unmStore.set(username.value);
             showToast('Login successful!', 'success');
             router.push('/home');
