@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeMount, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
@@ -7,7 +7,10 @@ import { showToast } from '@/utils/toastsService';
 const router = useRouter();
 const username = ref('');
 const password = ref('');
+const confirmPassword = ref('');
 const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+const isSigningUp = ref(false);
 
 const signup = async() => {
     try {
@@ -15,6 +18,11 @@ const signup = async() => {
             showToast('Invalid username or password', 'error');
             throw new Error('Invalid username or password format');
         }
+        if(password.value !== confirmPassword.value) {
+            showToast('Passwords do not match', 'error');
+            throw new Error('Passwords do not match');
+        }
+        isSigningUp.value = true;
         const response = await fetch(`${BASE_URL}/signup`, {
             method: 'POST',
             headers: {
@@ -28,14 +36,23 @@ const signup = async() => {
         if(!response.ok) {
             const errorMsg = (await response.json()).message || 'Signup failed';
             showToast(errorMsg, 'error');
+            isSigningUp.value = false;
             throw new Error(errorMsg);
         }
         showToast('Signup successful!', 'success');
+        isSigningUp.value = false;
         router.push('/login');
     } catch (error: any) {
+        isSigningUp.value = false;
         console.error('Error during signup:', error.message);
     }
 };
+
+onBeforeMount(() => {
+    username.value = '';
+    password.value = '';
+    isSigningUp.value = false;
+});
 
 /**
  * Check if the username is valid according to predefined criteria - Alphanumeric and underscores, 3-20 characters long.
@@ -52,30 +69,34 @@ const checkUnameValidity = () => {
 const checkPwdValidity = () => {
     return password.value.length >= 6;
 };
+
+const checkPasswordsMatch = () => {
+    return password.value === confirmPassword.value && password.value.length > 0;
+};
 </script>
 
 <template>
     <div class="auth-container">
         <div class="auth-box">
-            <h1>Signup</h1>
+            <h1>Signup Page</h1>
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" v-model="username" />
+                <input type="text" v-model="username" :disabled="isSigningUp" />
                 <div v-if="username" :class="['validation-message', checkUnameValidity() ? 'success' : 'error']">
                     <span class="validation-icon">{{ checkUnameValidity() ? '✓' : '✗' }}</span>
                     <span v-if="checkUnameValidity()">
                         Username looks good!
                     </span>
                     <span v-else>
-                        Username must be 3-20 characters long and can only contain letters, numbers, underscores and '.'.
+                        Username must be 3-20 characters long and can only contain letters, numbers, and underscores.
                     </span>
                 </div>
             </div>
             <div class="form-group">
                 <label>Password</label>
                 <div class="password-input-wrapper">
-                    <input :type="showPassword ? 'text' : 'password'" v-model="password" />
-                    <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword">
+                    <input :type="showPassword ? 'text' : 'password'" v-model="password" :disabled="isSigningUp" />
+                    <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword" :disabled="isSigningUp">
                         {{ showPassword ? '👁️' : '👁️‍🗨️' }}
                     </button>
                 </div>
@@ -89,8 +110,29 @@ const checkPwdValidity = () => {
                     </span>
                 </div>
             </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <div class="password-input-wrapper">
+                    <input :type="showConfirmPassword ? 'text' : 'password'" v-model="confirmPassword" :disabled="isSigningUp" />
+                    <button type="button" class="password-toggle-btn" @click="showConfirmPassword = !showConfirmPassword" :disabled="isSigningUp">
+                        {{ showConfirmPassword ? '👁️' : '👁️‍🗨️' }}
+                    </button>
+                </div>
+                <div v-if="confirmPassword" :class="['validation-message', checkPasswordsMatch() ? 'success' : 'error']">
+                    <span class="validation-icon">{{ checkPasswordsMatch() ? '✓' : '✗' }}</span>
+                    <span v-if="checkPasswordsMatch()">
+                        Passwords match!
+                    </span>
+                    <span v-else>
+                        Passwords do not match.
+                    </span>
+                </div>
+            </div>
             <div>
-                <button type="button" class="auth-button" @click="signup">Sign Up Here</button>
+                <button type="button" class="auth-button" :disabled="isSigningUp" @click="signup">
+                    <span v-if="isSigningUp" class="button-spinner"></span>
+                    {{ isSigningUp ? 'Signing up...' : 'Sign Up Here' }}
+                </button>
             </div>
             <div class="auth-link-container">
                 <p>Already have an account?</p>
@@ -233,6 +275,53 @@ const checkPwdValidity = () => {
 
 .auth-button:active {
     transform: translateY(0);
+}
+
+.auth-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: translateY(0);
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-button:disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+.button-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .auth-link-container {

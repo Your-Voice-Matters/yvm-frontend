@@ -1,16 +1,17 @@
 <script setup lang="ts">
-    import { ref } from 'vue';
+    import { ref, onBeforeUnmount } from 'vue';
     import { useRouter } from 'vue-router';
 
     import { usernameStore } from '../stores/username';
     import { BASE_URL } from '@/utils/constants';
-import { showToast } from '@/utils/toastsService';
+    import { showToast } from '@/utils/toastsService';
 
     const router = useRouter();
     const unmStore = usernameStore();
     const username = ref('');
     const password = ref('');
     const showPassword = ref(false);
+    const isLoggingIn = ref(false);
 
     const handleLogin = async() => {
         try {
@@ -18,6 +19,7 @@ import { showToast } from '@/utils/toastsService';
                 showToast('Please enter both username and password.', 'error');
                 throw new Error('Username or password is empty');
             }
+            isLoggingIn.value = true;
             const response = await fetch(`${BASE_URL}/login`, {
                 method: 'POST',
                 headers: {
@@ -31,6 +33,7 @@ import { showToast } from '@/utils/toastsService';
             if(!response.ok) {
                 let errorMsg = (await response.json()).message || 'Login failed';
                 showToast(errorMsg, 'error');
+                isLoggingIn.value = false;
                 throw new Error(errorMsg);
             }
             const data = await response.json();
@@ -38,11 +41,19 @@ import { showToast } from '@/utils/toastsService';
             window.localStorage.setItem('token', data.token);
             unmStore.set(username.value);
             showToast('Login successful!', 'success');
+            isLoggingIn.value = false;
             router.push('/home');
         } catch (error: any) {
+            isLoggingIn.value = false;
             console.error('Error during login:', error.message);
         }
     };
+
+    onBeforeUnmount(() => {
+        username.value = '';
+        password.value = '';
+        isLoggingIn.value = false;
+    });
 </script>
 
 <template>
@@ -51,19 +62,22 @@ import { showToast } from '@/utils/toastsService';
             <h1>Login</h1>
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" v-model="username" />
+                <input type="text" v-model="username" :disabled="isLoggingIn" />
             </div>
             <div class="form-group">
                 <label>Password</label>
                 <div class="password-input-wrapper">
-                    <input :type="showPassword ? 'text' : 'password'" v-model="password" />
-                    <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword">
+                    <input :type="showPassword ? 'text' : 'password'" v-model="password" :disabled="isLoggingIn" />
+                    <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword" :disabled="isLoggingIn">
                         {{ showPassword ? '👁️' : '👁️‍🗨️' }}
                     </button>
                 </div>
             </div>
             <div>
-                <button type="button" class="auth-button" @click="handleLogin">Login Here</button>
+                <button type="button" class="auth-button" :disabled="isLoggingIn" @click="handleLogin">
+                    <span v-if="isLoggingIn" class="button-spinner"></span>
+                    {{ isLoggingIn ? 'Logging in...' : 'Login Here' }}
+                </button>
             </div>
             <div class="auth-link-container">
                 <p>Don't have an account?</p>
@@ -206,6 +220,53 @@ import { showToast } from '@/utils/toastsService';
 
 .auth-button:active {
     transform: translateY(0);
+}
+
+.auth-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: translateY(0);
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-button:disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+.button-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .auth-link-container {
