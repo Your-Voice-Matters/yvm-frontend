@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeMount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { usernameStore } from '../stores/username';
 import { setUsername } from '@/utils/setUser';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
+import { checkUserToken } from "../utils/checkUserToken";
 
 const route = useRoute();
 const router = useRouter();
@@ -113,6 +114,10 @@ const getSortedResults = () => {
 const getRankClass = (index: number) => {
     return `rank-${index + 1}`;
 };
+
+onBeforeMount(async() => {
+    await checkUserToken();
+});
 
 onMounted(async() => {
     setUsername();

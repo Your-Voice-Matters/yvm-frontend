@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeMount } from 'vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 
@@ -7,6 +7,7 @@ import NavBar from "../components/NavBar.vue";
 import { setUsername } from '@/utils/setUser';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
+import { checkUserToken } from "../utils/checkUserToken";
 
 const mostPopularPolls = ref<any[]>([]);
 const myPolls = ref<any[]>([]);
@@ -83,6 +84,10 @@ async function fetchPollsIParticipatedIn() {
 function getPollDetails(pollId: number) {
   router.push(`/poll/${pollId}`);
 }
+
+onBeforeMount(async() => {
+  await checkUserToken();
+});
 
 onMounted(() => {
   setUsername();

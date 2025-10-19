@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onBeforeMount } from 'vue';
 import { useRouter } from 'vue-router';
 
 import NavBar from '../components/NavBar.vue';
 import { BASE_URL } from '@/utils/constants';
 import { showToast } from '@/utils/toastsService';
+import { checkUserToken } from "../utils/checkUserToken";
 
 const router = useRouter();
 const title = ref('');
@@ -63,6 +64,10 @@ const createPoll = async() => {
         console.error('Error during poll creation:', error.message);
     }
 };
+
+onBeforeMount(async() => {
+    await checkUserToken();
+});
 </script>
 
 <template>
